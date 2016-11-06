@@ -5,6 +5,7 @@ import (
     "fmt"
     "github.com/boltdb/bolt"
     "encoding/json"
+    "strconv"
 )
 
 var db *bolt.DB
@@ -46,12 +47,13 @@ func (n *Note) Save() error {
     return err
 }
 
-func GetNote(id string) (*Note, error) {
+func GetNote(id int) (*Note, error) {
     var n *Note
+    noteId := strconv.Itoa(id)
     err := db.View(func (tx *bolt.Tx) error{
         var err error
         b := tx.Bucket([]byte("notes"))
-        k := []byte(id)
+        k := []byte(noteId)
         err = json.Unmarshal(b.Get(k), &n)
         if err != nil {
             return err
@@ -63,4 +65,23 @@ func GetNote(id string) (*Note, error) {
         return nil, err
     }
     return n, nil
+}
+
+func GetNotes() []Note {
+    var notes []Note
+    // var n Note
+    db.View(func(tx *bolt.Tx) error {
+        // var err error
+        c := tx.Bucket([]byte("notes")).Cursor()
+        for k, v := c.First(); k!=nil; k,v =c.Next() {
+            fmt.Printf("all key=%s, value=%s\n", k, v)
+            // err = json.Unmarshal(k, n)
+            // if err != nil {
+            //     return err
+            // }
+            // notes = append(notes, n)
+        }
+        return nil
+    })
+    return notes
 }

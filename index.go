@@ -7,68 +7,67 @@ import (
     "strings"
     "strconv"
     "./note"
+    "errors"
+    "encoding/json"
+    "html/template"
 )
 
 var notesBucket = []byte("notes")
 
 
-func getId(path string) (id int, error string) {
-    parameter := strings.Split(path, "/")
-    if (len(parameter) > 3){
-        error = "endpoint does not"
-    } else {
-        idP, err := strconv.Atoi(parameter[2])
-        if err != nil {
-            fmt.Println(err)
-        }
-        id = idP
+func getId(path string) (int, error) {
+    var err error
+    var id int
+    notePath := strings.TrimPrefix(path, "/notes")
+    notePath = strings.TrimLeft(notePath,"/")
+    if len(notePath) == 0 {
+        return id, err
     }
-    return id, error
+
+    parameter := strings.Split(notePath, "/")
+    if (len(parameter) > 1){
+         err = errors.New("endpoint does not")
+         return id, err
+    } else {
+        if (len(parameter) == 1) {
+            id, err = strconv.Atoi(parameter[0])
+        }
+    }
+    return id, err
 }
-
-// func (note *Note) save(db *bolt.DB) error {
-//     // Store the user model in the user bucket using the username as the key.
-//     err := db.Update(func(tx *bolt.Tx) error {
-//         b, err := tx.CreateBucketIfNotExists(notesBucket)
-//         if err != nil {
-//             return err
-//         }    
-
-//         encoded, err := json.Marshal(note)
-//         if err != nil {
-//             return err
-//         }
-//         return b.Put([]byte(note.title), encoded)
-//     })
-//     return err
-// }
 
 func main() {
     note.Open()
+    defer note.Close()
     // note.Save()
     // type Note note.Note
-    n := note.Note{Id:"123",Title:"title", Text:"text", Author:"author", Date:"date"}
-    n.Save()
-    n1, _ := note.GetNote("123433")
-    fmt.Println(n1)
+    // n := note.Note{Id:"1",Title:"title", Text:"text", Author:"author", Date:"date"}
+    // n1 := note.Note{Id:"123",Title:"title", Text:"text", Author:"author", Date:"date"}
+    // n.Save()
+    // n1.Save()
+
     http.HandleFunc("/notes/", func(w http.ResponseWriter, r *http.Request) {
         // if r.URL.Path != "/notes/" {
         //     http.NotFound(w, r)
         //     return
         // }
-
-        id, error := getId(r.URL.Path)
-        if len(error) > 0 {
-            http.NotFound(w, r)
-        }
-        fmt.Println(id)
-        fmt.Println(error)
-
-        defer note.Close()
+        
 
         switch r.Method {
             case "GET":
-                fmt.Fprintf(w, "GET, %q", html.EscapeString(r.URL.Path))
+                id, err := getId(r.URL.Path)
+                if err != nil {
+                    fmt.Fprintf(w, "error %q", err)
+                    return
+                }
+                
+                if id != 0 {
+                    n1, _ := note.GetNote(id)
+                    t, _ := json.Marshal(n1)
+                    fmt.Fprintf(w, "Response %q", template.JS(t))
+                } else {
+                    note.GetNotes();
+                }
             case "POST":
                 fmt.Fprintf(w, "POST, %q", html.EscapeString(r.URL.Path))
             case "PUT":
